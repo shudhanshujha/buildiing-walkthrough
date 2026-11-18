@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AURA RESIDENCES — 3D Real Estate &amp; Architectural Viewer</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- =====================================================================
+       TOP ARCHITECTURAL COMMAND BAR
+       ===================================================================== -->
+  <header id="topBar">
+    <div class="brand-cluster">
+      <div class="brand-mark">AR</div>
+      <div class="brand-titles">
+        <h1>AURA RESIDENCES</h1>
+        <span id="contextBreadcrumb">Full Tower · All 6 Floors</span>
+      </div>
+    </div>
+
+    <nav class="view-mode-switcher" aria-label="View Modes">
+      <button class="mode-btn active" data-view-mode="exterior">3D Building</button>
+      <button class="mode-btn" data-view-mode="cutaway">3D Floor Cutaway</button>
+      <button class="mode-btn" data-view-mode="walkthrough">3D Walkthrough</button>
+      <button class="mode-btn" data-view-mode="split">Split 3D + 2D</button>
+      <button class="mode-btn" data-view-mode="schematic">2D Schematic</button>
+    </nav>
+
+    <div class="top-actions">
+      <button id="btnToggleLights" class="action-btn" title="Cycle Interior Lighting Mode">Lights: Auto</button>
+      <button id="btnQuickSnap" class="action-btn gold" title="Capture Instant Snapshot (Shortcut: P)">
+        📷 Capture
+      </button>
+      <button id="btnOpenGallery" class="action-btn" title="Open Snapshot Studio &amp; Saved Captures">
+        Snapshots <span id="snapCountBadge" class="badge-count">0</span>
+      </button>
+      <button id="btnHelpModal" class="action-btn" title="Navigation &amp; Controls Guide">?</button>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       LEFT COLLAPSIBLE STUDIO SIDEBAR (FLOORS, SUN/MOON, CUSTOMIZER)
+       ===================================================================== -->
+  <aside id="leftSidebar">
+    <button id="btnToggleSidebar" title="Collapse / Expand Studio Panel">☰</button>
+
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab-btn active" data-sidebar-tab="tab-floors">Floors &amp; Units</button>
+      <button class="sidebar-tab-btn" data-sidebar-tab="tab-celestial">Sun &amp; Moon</button>
+      <button class="sidebar-tab-btn" data-sidebar-tab="tab-finishes">Customize</button>
+    </div>
+
+    <!-- TAB 1: FLOORS, CUTAWAY & APARTMENT / ROOM NAVIGATION -->
+    <section id="tab-floors" class="sidebar-panel active">
+      <div>
+        <div class="section-label">Building Elevation &amp; Layouts</div>
+        <div id="floorStackList"></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label class="toggle-row">
+          <span>3D Dollhouse Cutaway (Open Ceiling)</span>
+          <input type="checkbox" id="chkIsolateFloor" />
+        </label>
+        <label class="toggle-row">
+          <span>X-Ray Ghost Non-Selected Floors</span>
+          <input type="checkbox" id="chkGhostFloors" />
+        </label>
+      </div>
+
+      <div>
+        <div class="section-label">Apartments &amp; 3D Room Spaces</div>
+        <div id="roomNavList"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CELESTIAL SUN & MOON DIRECTIONAL STUDIO -->
+    <section id="tab-celestial" class="sidebar-panel">
+      <div>
+        <div class="section-label">Active Celestial Light Source</div>
+        <div class="body-toggle-pair">
+          <button id="btnBodySun" class="body-btn active">☀️ Sun / Day</button>
+          <button id="btnBodyMoon" class="body-btn">🌕 Moon / Night</button>
+        </div>
+      </div>
+
+      <div class="control-block">
+        <div class="control-row-head">
+          <span>Time of Day</span>
+          <button id="btnPlayTime" class="icon-chip" style="padding:3px 9px;">▶ Timelapse</button>
+        </div>
+        <div id="lblTimeReadout" class="mono-val">04:30 PM · Afternoon</div>
+        <input type="range" id="sliderTime" min="0" max="24" step="0.05" value="16.5" />
+        <div id="timePresetsGrid" class="presets-grid"></div>
+      </div>
+
+      <div class="control-block">
+        <div class="control-row-head">
+          <span>Sun / Moon Compass Direction</span>
+          <span id="lblCelestialAz" class="mono-val">SW · 232°</span>
+        </div>
+        <input type="range" id="sliderCelestialAz" min="0" max="360" step="1" value="232" />
+        <div class="mini-compass-strip">
+          <button class="mini-dir-btn" data-celestial-dir="0">N</button>
+          <button class="mini-dir-btn" data-celestial-dir="45">NE</button>
+          <button class="mini-dir-btn" data-celestial-dir="90">E</button>
+          <button class="mini-dir-btn" data-celestial-dir="135">SE</button>
+          <button class="mini-dir-btn" data-celestial-dir="180">S</button>
+          <button class="mini-dir-btn" data-celestial-dir="225">SW</button>
+          <button class="mini-dir-btn" data-celestial-dir="270">W</button>
+          <button class="mini-dir-btn" data-celestial-dir="315">NW</button>
+        </div>
+      </div>
+
+      <div class="control-block">
+        <div class="control-row-head">
+          <span>Altitude / Elevation Angle</span>
+          <span id="lblCelestialEl" class="mono-val">32°</span>
+        </div>
+        <input type="range" id="sliderCelestialEl" min="5" max="85" step="1" value="32" />
+      </div>
+
+      <div class="control-block">
+        <div class="control-row-head">
+          <span>Seasonal Solar Arc</span>
+        </div>
+        <select id="selectSeason" class="styled-select">
+          <option value="14">Summer Solstice (High Overhead Sun)</option>
+          <option value="28" selected>Spring / Autumn Equinox (Balanced)</option>
+          <option value="46">Winter Solstice (Deep Low Sunlight)</option>
+        </select>
+      </div>
+
+      <label class="toggle-row">
+        <span>Show 3D Sun &amp; Moon Orbit Paths</span>
+        <input type="checkbox" id="chkShowSunPath" checked />
+      </label>
+    </section>
+
+    <!-- TAB 3: MATERIAL & OBJECT VARIATIONS CUSTOMIZER -->
+    <section id="tab-finishes" class="sidebar-panel">
+      <div class="hint-box">
+        <strong>Interactive 3D Picker:</strong> Click any flooring, window, modular kitchen, wall, or furniture directly in 3D — or browse variations below.
+      </div>
+
+      <div id="customCatTabs" class="cat-chips-row"></div>
+      <div id="customOptionsList"></div>
+
+      <div class="upgrade-summary-bar">
+        <span id="lblUpgradeTotal" class="mono-val">Included Base Spec ($0)</span>
+        <button id="btnResetFinishes" class="icon-chip">Reset</button>
+      </div>
+    </section>
+  </aside>
+
+  <!-- =====================================================================
+       MAIN 3D & 2D VIEWPORT STAGE
+       ===================================================================== -->
+  <main id="viewportStage" data-mode="exterior">
+    <!-- 3D WebGL Stage -->
+    <div id="pane3D">
+      <canvas id="webglCanvas"></canvas>
+
+      <!-- First-Person Walkthrough Floating Banner -->
+      <div id="walkthroughBanner">
+        <span id="lblWalkRoom">F3 · Unit 301 · Living Salon</span>
+        <span class="walk-hint">Drag to Look · WASD / Arrows or Pad to Walk · Click Floor Rings</span>
+        <button id="btnPointerLock" class="icon-chip">FPS Mouse Look</button>
+        <button id="btnExitWalkthrough" class="icon-chip" style="color:#fca5a5;">Exit ✕</button>
+      </div>
+
+      <!-- Right Floating Compass Rose & Directional Controls HUD -->
+      <div id="hudRightControls">
+        <div id="compassWidget" class="hud-card">
+          <div class="hud-card-title">
+            <span>VIEW DIRECTION</span>
+            <span id="lblCompassBearing" class="mono-val">SW · 225°</span>
+          </div>
+          <div class="compass-rose-box">
+            <div id="compassDial">
+              <div class="compass-needle"></div>
+            </div>
+            <div id="compassSunPin" class="celestial-pin" title="Sun Azimuth"></div>
+            <div id="compassMoonPin" class="celestial-pin" title="Moon Azimuth"></div>
+
+            <!-- 8 Cardinal & Intercardinal View Preset Nodes -->
+            <button class="compass-btn north" data-compass-dir="N"  style="left:50%; top:9%;">N</button>
+            <button class="compass-btn"       data-compass-dir="NE" style="left:79%; top:21%;">NE</button>
+            <button class="compass-btn"       data-compass-dir="E"  style="left:91%; top:50%;">E</button>
+            <button class="compass-btn"       data-compass-dir="SE" style="left:79%; top:79%;">SE</button>
+            <button class="compass-btn"       data-compass-dir="S"  style="left:50%; top:91%;">S</button>
+            <button class="compass-btn"       data-compass-dir="SW" style="left:21%; top:79%;">SW</button>
+            <button class="compass-btn"       data-compass-dir="W"  style="left:9%;  top:50%;">W</button>
+            <button class="compass-btn"       data-compass-dir="NW" style="left:21%; top:21%;">NW</button>
+          </div>
+          <div class="compass-extra-row">
+            <button class="icon-chip" data-compass-dir="TOP">Top Plan</button>
+            <button class="icon-chip" data-compass-dir="STREET">Street Eye</button>
+          </div>
+        </div>
+
+        <!-- Multi-Mode Directional Control Pad -->
+        <div id="directionalPad" class="hud-card">
+          <div class="hud-card-title">
+            <span id="lblPadMode">3D DIRECTIONAL</span>
+            <button id="padReset" class="icon-chip">Reset</button>
+          </div>
+          <div class="dpad-grid">
+            <button id="padStrafeL" class="dpad-btn" title="Step Left / Zoom">⇤</button>
+            <button id="padUp"      class="dpad-btn" title="Tilt Up / Walk Forward">▲</button>
+            <button id="padStrafeR" class="dpad-btn" title="Step Right">⇥</button>
+
+            <button id="padLeft"    class="dpad-btn" title="Orbit Left / Turn Left">◀</button>
+            <button id="padZoomIn"  class="dpad-btn" title="Zoom In">＋</button>
+            <button id="padRight"   class="dpad-btn" title="Orbit Right / Turn Right">▶</button>
+
+            <button class="dpad-btn" data-compass-dir="SW" title="Hero Angle">⌂</button>
+            <button id="padDown"    class="dpad-btn" title="Tilt Down / Walk Back">▼</button>
+            <button id="padZoomOut" class="dpad-btn" title="Zoom Out">－</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive 2D Schematic & Blueprint Pane -->
+    <div id="pane2D">
+      <div class="pane2d-header">
+        <span id="lbl2DFloorTitle" class="pane2d-title">F3 · Twin 2BHK Family Wings</span>
+        <div class="pane2d-controls">
+          <button id="btn2DTheme" class="icon-chip" title="Toggle Architectural Color Plan / CAD Blueprint">Blueprint</button>
+          <button id="btn2DRotLeft" class="icon-chip" title="Rotate 2D Plan -45°">↺</button>
+          <button id="btn2DRotRight" class="icon-chip" title="Rotate 2D Plan +45°">↻</button>
+          <button id="btn2DZoomIn" class="icon-chip" title="Zoom In 2D Plan">＋</button>
+          <button id="btn2DZoomOut" class="icon-chip" title="Zoom Out 2D Plan">－</button>
+          <button id="btn2DReset" class="icon-chip" title="Reset 2D View">Fit</button>
+          <button id="btn2DExpandSplit" class="icon-chip" title="Expand Split / Full 2D View">⤢</button>
+          <button id="btn2DMinimize" class="icon-chip" title="Minimize / Restore 2D Mini-Map">—</button>
+        </div>
+      </div>
+      <div class="schematic-canvas-wrap">
+        <canvas id="schematicCanvas"></canvas>
+        <div class="pane2d-dpad">
+          <button id="btn2DPanW" class="icon-chip">◀ W</button>
+          <button id="btn2DPanN" class="icon-chip">▲ N</button>
+          <button id="btn2DPanS" class="icon-chip">▼ S</button>
+          <button id="btn2DPanE" class="icon-chip">E ▶</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Floating 3D Raycast Hover Tooltip, Shutter Flash & Toast -->
+  <div id="pickTooltip"></div>
+  <div id="shutterFlash"></div>
+  <div id="toastBanner"></div>
+
+  <!-- =====================================================================
+       SNAPSHOT STUDIO & GALLERY MODAL
+       ===================================================================== -->
+  <div id="snapshotModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📷 Architectural Snapshot Studio &amp; Gallery</h2>
+        <button id="btnCloseSnapModal" class="action-btn">Close ✕</button>
+      </div>
+      <div class="modal-toolbar">
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <label class="toggle-row" style="gap:8px;">
+            <input type="checkbox" id="chkSnapSpecBar" checked />
+            <span>Include Spec Title-Block Stamp</span>
+          </label>
+          <label class="toggle-row" style="gap:8px;">
+            <input type="checkbox" id="chkSnapPlanInset" checked />
+            <span>Include 2D Floorplan PiP Inset</span>
+          </label>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="btnCapture3DNow" class="action-btn gold">Capture Current 3D View</button>
+          <button id="btnCapture2DNow" class="action-btn">Capture 2D Blueprint</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="snapshotGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox Fullscreen Snapshot Inspector -->
+  <div id="lightboxModal" class="modal-backdrop">
+    <div class="modal-card" style="width:min(1080px, 95vw);">
+      <div class="modal-header">
+        <h2 id="lightboxCaption" style="font-size:13px;">Snapshot Preview</h2>
+        <div style="display:flex; gap:8px;">
+          <button id="btnLightboxDownload" class="action-btn gold">Download PNG</button>
+          <button id="btnCloseLightbox" class="action-btn">Close ✕</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="lightbox-img-wrap">
+          <img id="lightboxImg" alt="Architectural Snapshot" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Controls Modal -->
+  <div id="helpModal" class="modal-backdrop">
+    <div class="modal-card" style="width:min(760px, 92vw);">
+      <div class="modal-header">
+        <h2>AURA RESIDENCES — Navigation &amp; Studio Guide</h2>
+        <button id="btnCloseHelp" class="action-btn">Got It ✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-grid">
+          <div class="help-block">
+            <h3>🧭 Exterior &amp; Compass Directions</h3>
+            <p>Drag to orbit, scroll to zoom, or click <strong>N, NE, E, SE, S, SW, W, NW, Top Plan, or Street Eye</strong> on the Compass HUD to inspect sightlines from any orientation.</p>
+          </div>
+          <div class="help-block">
+            <h3>☀️ Sun &amp; 🌕 Moon Lighting</h3>
+            <p>Open <strong>Sun &amp; Moon</strong> to scrub 24h daylight/moonlight, play a live timelapse, or manually aim Sun/Moon azimuth (0°–360°) &amp; elevation into any apartment window.</p>
+          </div>
+          <div class="help-block">
+            <h3>🏢 Floors, Cutaway &amp; 2D Schematic</h3>
+            <p>Each of the 6 floors has a unique layout (Lobby, Smart Suites, Twin 2BHK, 3BHK+1BHK, 4BHK Sky Villa, Crown Penthouse). Toggle <strong>Cutaway</strong>, <strong>Split 3D+2D</strong>, or <strong>2D Schematic</strong>.</p>
+          </div>
+          <div class="help-block">
+            <h3>🚶 3D Room Walkthrough</h3>
+            <p>Click <strong>Walk 3D</strong> on any room, click a room on the 2D plan, or click golden floor rings. Use <strong>W A S D / Arrow Keys</strong> or the on-screen Directional Pad to walk room-to-room.</p>
+          </div>
+          <div class="help-block">
+            <h3>🎨 Live Finish Variations</h3>
+            <p>Click directly on any <strong>Flooring, Window, Modular Kitchen, Wall, or Furniture</strong> in 3D (or open the Customize tab) to swap architectural materials &amp; island layouts live.</p>
+          </div>
+          <div class="help-block">
+            <h3>📷 Snapshot Studio</h3>
+            <p>Click <strong>Capture</strong> (or press <strong>P</strong>) anytime to save high-res PNG renders with optional architectural title-blocks and 2D floorplan insets.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular Application Scripts (Compatible with both HTTP Server & Direct file:// Open) -->
+  <script src="js/config.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/environment.js"></script>
+  <script src="js/building.js"></script>
+  <script src="js/schematic2d.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/snapshot.js"></script>
+  <script src="js/app.js"></script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    window.EstateApp.bootstrap({ THREE, OrbitControls });
+  </script>
+</body>
+</html>
+
